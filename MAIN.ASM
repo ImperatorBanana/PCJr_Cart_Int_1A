@@ -1,3 +1,8 @@
+;; Interrupt Vector CONSTANTS
+interrupt_vec_table	EQU 0000h
+int18offset		EQU 018h * 04h
+int18segment	EQU int18offset + 02h
+
 ;; BIOS Service Interrupt CONSTANTS
 int_video						EQU	10h
 svc_video_mode					EQU	00h
@@ -104,9 +109,22 @@ D1:	loop	D1
 	ret
 DELAY ENDP
 
+;; ---------------- INIT - IPL Loader --------
+INIT PROC FAR
+	; Set up the interrupt vector to boot into the cartridge
+	mov		ax,interrupt_vec_table
+	mov		es,ax ; Set ES to 0000h (the interrupt vector segment)
+	mov		ax,cs
+	mov		es:int18segment,ax ; Move the current Code Segment to the Interrupt Vector 2nd 2 bytes
+	mov		ax,offset MAIN
+	mov		es:int18offset,ax ; Move the Main Offset to the Interrupt Vector 1st 2 bytes
+	ret
+INIT ENDP
 
 ;; ---------------- MAIN ---------------------
-INIT PROC FAR
+MAIN PROC FAR
+	sti ; Re-enable interrupts since we got here via an interrupt
+	
 	; Set Video Mode
 	mov		ah,svc_video_mode
 	mov		al,val_video_mode_80_25_grey
@@ -135,12 +153,12 @@ INF_LOOP: ;Infinite loop
 	jmp		INF_LOOP
 	
 	
-INIT ENDP
+MAIN ENDP
 
 ORG	cart_rom_len - 16; 15(name) + 2(chksum) ;; TODO - can the assembler calculate this
 FOOTER: ; PCJr Cartridge Footer
 	;;								"123456789ABCDE"
-	cart_name					db	"Base Project $" ; 
+	cart_name					db	"Forum Int 1a $" ; 
 	cart_chksum					dw	0CDABh ;; TODO - can the assembler calculate this?
 
 CARTSEG ENDS
